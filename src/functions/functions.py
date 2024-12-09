@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from e2b_code_interpreter import Sandbox
 from pydantic import BaseModel
-from typing import Dict, Union, Optional
+from typing import List, Optional
 
 load_dotenv()
 
@@ -18,37 +18,56 @@ openai.api_key = os.environ.get("OPENAI_KEY")
 from openai import OpenAI
 client = OpenAI(api_key=openai.api_key)
 
-class GenerateCodeSchema(BaseModel):
-    dockerfile: str
-    files: Dict[str, str]
-    
-     class Config:
-        # Forbid extra fields at top-level
+class FileItem(BaseModel):
+    filename: str
+    content: str
+
+    class Config:
         extra = "forbid"
-        # Provide a custom schema that matches OpenAI's structured output requirements
         schema_extra = {
             "type": "object",
             "properties": {
-                "dockerfile": {
-                    "type": "string"
-                },
-                "files": {
-                    "type": "object",
-                    # We want arbitrary keys with string values, so we can allow additionalProperties at this level
-                    "additionalProperties": {"type": "string"}
-                }
+                "filename": {"type": "string"},
+                "content": {"type": "string"}
             },
-            "required": ["dockerfile", "files"],
-            # No extra properties allowed at top-level
+            "required": ["filename", "content"],
             "additionalProperties": False
         }
 
+class GenerateCodeSchema(BaseModel):
+    dockerfile: str
+    files: List[FileItem]
+    
+    class Config:
+       extra = "forbid"
+       schema_extra = {
+           "type": "object",
+           "properties": {
+               "dockerfile": {"type": "string"},
+               "files": {
+                   "type": "array",
+                   "items": {"$ref": "#/$defs/FileItem"}
+               }
+           },
+           "required": ["dockerfile", "files"],
+           "additionalProperties": False,
+           "$defs": {
+               "FileItem": {
+                   "type": "object",
+                   "properties": {
+                       "filename": {"type": "string"},
+                       "content": {"type": "string"}
+                   },
+                   "required": ["filename", "content"],
+                   "additionalProperties": False
+               }
+           }
+       }
+
 class ValidateOutputSchema(BaseModel):
-    # We want result to always be present and boolean
-    # dockerfile and files can be null if result = true
     result: bool
     dockerfile: Optional[str] = None
-    files: Optional[Dict[str, str]] = None
+    files: Optional[List[FileItem]] = None
     
     class Config:
         extra = "forbid"
@@ -57,15 +76,34 @@ class ValidateOutputSchema(BaseModel):
             "properties": {
                 "result": {"type": "boolean"},
                 "dockerfile": {
-                    "type": ["string", "null"]
+                    "anyOf": [
+                        {"type": "string"},
+                        {"type": "null"}
+                    ]
                 },
                 "files": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {"type": "string"}
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {"$ref": "#/$defs/FileItem"}
+                        },
+                        {"type": "null"}
+                    ]
                 }
             },
             "required": ["result", "dockerfile", "files"],
-            "additionalProperties": False
+            "additionalProperties": False,
+            "$defs": {
+                "FileItem": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string"},
+                        "content": {"type": "string"}
+                    },
+                    "required": ["filename", "content"],
+                    "additionalProperties": False
+                }
+            }
         }
 
 
@@ -77,7 +115,7 @@ class GenerateCodeInput:
 @dataclass
 class GenerateCodeOutput:
     dockerfile: str
-    files: dict
+    files: list  # now a list of FileItem-like dicts
 
 @function.defn()
 async def generate_code(input: GenerateCodeInput) -> GenerateCodeOutput:
@@ -95,15 +133,21 @@ async def generate_code(input: GenerateCodeInput) -> GenerateCodeOutput:
 
     Return JSON strictly matching this schema:
     dockerfile: string
-    files: object mapping filename->file_content
+    files: array of objects with "filename" and "content" keys
 
     Example:
     {{
        "dockerfile": "FROM e2bdev/code-interpreter:latest\\n...",
-       "files": {{
-          "main.py": "#path/to/main.py\\n ...",
-          "pyproject.toml": "#path/to/pyproject.toml\\n ..."
-       }}
+       "files": [
+          {{
+             "filename": "main.py",
+             "content": "#path/to/main.py\\n ..."
+          }},
+          {{
+             "filename": "pyproject.toml",
+             "content": "#path/to/pyproject.toml\\n ..."
+          }}
+       ]
     }}
     """
 
@@ -121,13 +165,19 @@ async def generate_code(input: GenerateCodeInput) -> GenerateCodeOutput:
         raise RuntimeError("Model refused to generate code.")
     data = result.parsed
 
-    return GenerateCodeOutput(dockerfile=data.dockerfile, files=data.files)
+    # Convert FileItem objects to list of dicts if needed
+    # or just store them directly as data.files is already a list of FileItem
+    # GenerateCodeOutput expects a dict, but we can store as a list of dicts
+    # by converting each FileItem object:
+    files_list = [{"filename": f.filename, "content": f.content} for f in data.files]
+
+    return GenerateCodeOutput(dockerfile=data.dockerfile, files=files_list)
 
 
 @dataclass
 class RunCodeInput:
     dockerfile: str
-    files: dict
+    files: list
 
 @dataclass
 class RunCodeOutput:
@@ -136,14 +186,12 @@ class RunCodeOutput:
 @function.defn()
 async def run_code_in_e2b(input: RunCodeInput) -> RunCodeOutput:
     log.info("run_code_in_e2b started", input=input)
-    # Use a predefined template_id created from e2b template build
-    template_id = os.environ.get("E2B_TEMPLATE_ID")  # ensure this is set
+    template_id = os.environ.get("E2B_TEMPLATE_ID")
     sbx = Sandbox(template_id=template_id)
 
-    # Write Dockerfile and files
     sbx.files.write("/home/user/Dockerfile", input.dockerfile.encode("utf-8"))
-    for filename, content in input.files.items():
-        sbx.files.write(f"/home/user/{filename}", content.encode("utf-8"))
+    for file_item in input.files:
+        sbx.files.write(f"/home/user/{file_item['filename']}", file_item['content'].encode("utf-8"))
 
     build = sbx.run_code("docker build -t myapp /home/user")
     if build.returncode != 0:
@@ -156,7 +204,7 @@ async def run_code_in_e2b(input: RunCodeInput) -> RunCodeOutput:
 @dataclass
 class ValidateOutputInput:
     dockerfile: str
-    files: dict
+    files: list
     output: str
     test_conditions: str
 
@@ -164,11 +212,15 @@ class ValidateOutputInput:
 class ValidateOutputOutput:
     result: bool
     dockerfile: Optional[str] = None
-    files: Optional[dict] = None
+    files: Optional[list] = None
 
 @function.defn()
 async def validate_output(input: ValidateOutputInput) -> ValidateOutputOutput:
     log.info("validate_output started", input=input)
+
+    # Convert files to a JSON string for the prompt
+    # They are in the format [{"filename":"...", "content":"..."}]
+    files_str = json.dumps(input.files, indent=2)
 
     validation_prompt = f"""
     The test conditions: {input.test_conditions}
@@ -177,7 +229,7 @@ async def validate_output(input: ValidateOutputInput) -> ValidateOutputOutput:
     {input.dockerfile}
 
     files:
-    {json.dumps(input.files, indent=2)}
+    {files_str}
 
     output:
     {input.output}
@@ -189,9 +241,12 @@ async def validate_output(input: ValidateOutputInput) -> ValidateOutputOutput:
     {{
       "result": false,
       "dockerfile": "FROM e2bdev/code-interpreter:latest\\n...",
-      "files": {{
-         "filename.ext": "#path/to/filename.ext\\n..."
-      }}
+      "files": [
+        {{
+          "filename": "filename.ext",
+          "content": "#path/to/filename.ext\\n..."
+        }}
+      ]
     }}
     """
 
@@ -206,8 +261,14 @@ async def validate_output(input: ValidateOutputInput) -> ValidateOutputOutput:
 
     result = completion.choices[0].message
     if result.refusal:
-        # If the model refuses to validate, handle gracefully
         return ValidateOutputOutput(result=False)
 
     data = result.parsed
-    return ValidateOutputOutput(result=data.result, dockerfile=data.dockerfile, files=data.files)
+
+    if data.files is not None:
+        # Convert FileItem objects to dict format if needed
+        updated_files = [{"filename": f.filename, "content": f.content} for f in data.files]
+    else:
+        updated_files = None
+
+    return ValidateOutputOutput(result=data.result, dockerfile=data.dockerfile, files=updated_files)
