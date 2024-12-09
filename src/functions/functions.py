@@ -21,6 +21,27 @@ client = OpenAI(api_key=openai.api_key)
 class GenerateCodeSchema(BaseModel):
     dockerfile: str
     files: Dict[str, str]
+    
+     class Config:
+        # Forbid extra fields at top-level
+        extra = "forbid"
+        # Provide a custom schema that matches OpenAI's structured output requirements
+        schema_extra = {
+            "type": "object",
+            "properties": {
+                "dockerfile": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "object",
+                    # We want arbitrary keys with string values, so we can allow additionalProperties at this level
+                    "additionalProperties": {"type": "string"}
+                }
+            },
+            "required": ["dockerfile", "files"],
+            # No extra properties allowed at top-level
+            "additionalProperties": False
+        }
 
 class ValidateOutputSchema(BaseModel):
     # We want result to always be present and boolean
@@ -28,6 +49,24 @@ class ValidateOutputSchema(BaseModel):
     result: bool
     dockerfile: Optional[str] = None
     files: Optional[Dict[str, str]] = None
+    
+    class Config:
+        extra = "forbid"
+        schema_extra = {
+            "type": "object",
+            "properties": {
+                "result": {"type": "boolean"},
+                "dockerfile": {
+                    "type": ["string", "null"]
+                },
+                "files": {
+                    "type": ["object", "null"],
+                    "additionalProperties": {"type": "string"}
+                }
+            },
+            "required": ["result", "dockerfile", "files"],
+            "additionalProperties": False
+        }
 
 
 @dataclass
