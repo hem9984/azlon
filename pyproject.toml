@@ -1,0 +1,30 @@
+# Project metadata
+[tool.poetry]
+name = "azlon"
+version = "0.0.1"
+description = "autonomous coding project solver"
+authors = [
+    "Harrison E. Muchnic hem9984@nyu.edu",
+]
+readme = "readme.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+restack-ai = "0.0.40"
+openai = "^0.28.0"
+pydantic = "^1.10.0"
+e2b_code_interpreter = "^0.1.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "6.2"  # Optional: Add if you want to include tests in your example
+
+# Build system configuration
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# CLI command configuration
+[tool.poetry.scripts]
+services = "src.services:run_services"
+schedule = "schedule_workflow:run_schedule_workflow"
