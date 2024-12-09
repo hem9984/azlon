@@ -4,7 +4,7 @@ name = "azlon"
 version = "0.0.1"
 description = "autonomous coding project solver"
 authors = [
-    "Harrison E. Muchnic hem9984@nyu.edu",
+    "Harrison E. Muchnic <hem9984@nyu.edu>",
 ]
 readme = "readme.md"
 packages = [{include = "src"}]
@@ -14,7 +14,7 @@ python = ">=3.10,<4.0"
 restack-ai = "0.0.40"
 openai = "^0.28.0"
 pydantic = "^1.10.0"
-e2b_code_interpreter = "^0.1.0"
+e2b-code-interpreter = "1.0.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "6.2"  # Optional: Add if you want to include tests in your example
