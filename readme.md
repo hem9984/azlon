@@ -7,6 +7,10 @@ docker kill restack
 # to remove stopped container
 docker rm restack
 
+
+# TODO
+add hardcode print statement at the bottom of the script everytime to enhance test case validation
+
 ----------------------------------------------
 # e2b instructions
 initialize template:

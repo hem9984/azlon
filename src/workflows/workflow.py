@@ -2,8 +2,6 @@
 from restack_ai.workflow import workflow, import_functions, log
 from dataclasses import dataclass
 from datetime import timedelta
-import csv
-import os
 from datetime import datetime
 
 with import_functions():
@@ -31,14 +29,7 @@ class AutonomousCodingWorkflow:
         )
 
         dockerfile = gen_output.dockerfile
-        files = gen_output.files
-
-        log_file = "iterations_log.csv"
-        file_exists = os.path.isfile(log_file)
-        if not file_exists:
-            with open(log_file, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(["iteration", "filename", "timestamp"])
+        files = gen_output.files  # list of {"filename":..., "content":...}
 
         iteration_count = 0
         max_iterations = 20
@@ -68,19 +59,22 @@ class AutonomousCodingWorkflow:
                 log.info("AutonomousCodingWorkflow completed successfully")
                 return True
             else:
-                changed_files = val_output.files if val_output.files else {}
+                changed_files = val_output.files if val_output.files else []
                 if val_output.dockerfile:
                     dockerfile = val_output.dockerfile
 
-                for filename, new_content in changed_files.items():
-                    files[filename] = new_content
-
-                if changed_files:
-                    now = datetime.utcnow().isoformat()
-                    with open(log_file, "a", newline="", encoding="utf-8") as f:
-                        writer = csv.writer(f)
-                        for changed_filename in changed_files.keys():
-                            writer.writerow([iteration_count, changed_filename, now])
+                # Update the files list in-memory
+                for changed_file in changed_files:
+                    changed_filename = changed_file["filename"]
+                    changed_content = changed_file["content"]
+                    found = False
+                    for i, existing_file in enumerate(files):
+                        if existing_file["filename"] == changed_filename:
+                            files[i]["content"] = changed_content
+                            found = True
+                            break
+                    if not found:
+                        files.append({"filename": changed_filename, "content": changed_content})
 
         log.warn("AutonomousCodingWorkflow reached max iterations without success")
         return False

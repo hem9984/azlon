@@ -187,18 +187,25 @@ class RunCodeOutput:
 async def run_code_in_e2b(input: RunCodeInput) -> RunCodeOutput:
     log.info("run_code_in_e2b started", input=input)
     template_id = os.environ.get("E2B_TEMPLATE_ID")
-    sbx = Sandbox(template_id=template_id)
+    sbx = Sandbox(template_id)
 
-    sbx.files.write("/home/user/Dockerfile", input.dockerfile.encode("utf-8"))
+    # Write the files into the sandbox
     for file_item in input.files:
-        sbx.files.write(f"/home/user/{file_item['filename']}", file_item['content'].encode("utf-8"))
+        # Create directory if needed, here we assume /app
+        sbx.commands.run("mkdir -p /app")
+        sbx.files.write(f"/app/{file_item['filename']}", file_item['content'].encode("utf-8"))
 
-    build = sbx.run_code("docker build -t myapp /home/user")
-    if build.returncode != 0:
-        return RunCodeOutput(output=build.logs)
+    # Run the main Python file (assuming there's a main.py)
+    # If there's no main.py, adapt accordingly
+    run = sbx.commands.run("python3 /app/main.py")
 
-    run = sbx.run_code("docker run --rm myapp")
-    return RunCodeOutput(output=run.logs)
+    if run["exit_code"] != 0:
+        return RunCodeOutput(output=run["stderr"] or run["stdout"])
+    return RunCodeOutput(output=run["stdout"])
+
+
+
+
 
 
 @dataclass
