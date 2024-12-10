@@ -1,3 +1,8 @@
+# Copyright (C) 2024 Harrison E. Muchnic
+# This program is licensed under the Affero General Public License (AGPL).
+# See the LICENSE file for details.
+
+
 # src/functions/functions.py
 from restack_ai.function import function, log
 from dataclasses import dataclass
