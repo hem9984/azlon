@@ -1,3 +1,8 @@
+# Copyright (C) 2024 Harrison E. Muchnic
+# This program is licensed under the Affero General Public License (AGPL).
+# See the LICENSE file for details.
+
+
 # src/functions/functions.py
 from restack_ai.function import function, log
 from dataclasses import dataclass
@@ -192,16 +197,16 @@ async def run_code_in_e2b(input: RunCodeInput) -> RunCodeOutput:
     # Write the files into the sandbox
     for file_item in input.files:
         # Create directory if needed, here we assume /app
-        sbx.commands.run("mkdir -p /app")
-        sbx.files.write(f"/app/{file_item['filename']}", file_item['content'].encode("utf-8"))
+        # sbx.commands.run("mkdir -p /app")
+        sbx.files.write(f"./{file_item['filename']}", file_item['content'].encode("utf-8"))
 
     # Run the main Python file (assuming there's a main.py)
     # If there's no main.py, adapt accordingly
-    run = sbx.commands.run("python3 /app/main.py")
+    run = sbx.commands.run("python3 ./main.py")
 
-    if run["exit_code"] != 0:
-        return RunCodeOutput(output=run["stderr"] or run["stdout"])
-    return RunCodeOutput(output=run["stdout"])
+    if run.exit_code != 0:
+        return RunCodeOutput(output=run.stderr or run.stdout)
+    return RunCodeOutput(output=run.stdout)
 
 
 
