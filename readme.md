@@ -1,3 +1,13 @@
+# How to
+* set .env to your api keys
+* make sure e2b is working by following their instructions
+* run restack engine
+* in two seperate terminal windows first do poetry shell, then poetry run services. other terminal window: poetry run schedule
+* see results in restack GUI 
+
+
+
+-------------------------
 # To start restack enine
 docker run -d --pull always --name restack -p 5233:5233 -p 6233:6233 -p 7233:7233 ghcr.io/restackio/restack:main
 
@@ -9,7 +19,9 @@ docker rm restack
 
 
 # TODO
-add hardcode print statement at the bottom of the script everytime to enhance test case validation
+* add hardcode print statement at the bottom of the script everytime to enhance test case validation
+* improve system prompts
+* require main.py as entrypoint in dockerfile
 
 ----------------------------------------------
 # e2b instructions
