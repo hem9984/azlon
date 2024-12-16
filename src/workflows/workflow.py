@@ -5,7 +5,7 @@ from datetime import timedelta
 from datetime import datetime
 
 with import_functions():
-    from src.functions.functions import generate_code, run_code_in_e2b, validate_output
+    from src.functions.functions import generate_code, run_locally, validate_output
     from src.functions.functions import GenerateCodeInput, RunCodeInput, ValidateOutputInput
 
 @dataclass
@@ -39,7 +39,7 @@ class AutonomousCodingWorkflow:
             log.info(f"Iteration {iteration_count} start")
 
             run_output = await workflow.step(
-                run_code_in_e2b,
+                run_locally,
                 RunCodeInput(dockerfile=dockerfile, files=files),
                 start_to_close_timeout=timedelta(seconds=300)
             )

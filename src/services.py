@@ -1,13 +1,13 @@
 # src/services.py
 import asyncio
 from src.client import client
-from src.functions.functions import generate_code, run_code_in_e2b, validate_output
+from src.functions.functions import generate_code, run_locally, validate_output
 from src.workflows.workflow import AutonomousCodingWorkflow
 
 async def main():
     await client.start_service(
         workflows=[AutonomousCodingWorkflow],
-        functions=[generate_code, run_code_in_e2b, validate_output],
+        functions=[generate_code, run_locally, validate_output],
     )
 
 def run_services():
