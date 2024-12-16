@@ -9,15 +9,10 @@ docker rm restack
 
 
 # TODO
-add hardcode print statement at the bottom of the script everytime to enhance test case validation
+friendly UI. add hardcode print statement at the bottom of the script everytime to enhance test case validation
 
 ----------------------------------------------
-# e2b instructions
-initialize template:
-e2b template init
 
-build the template:
-e2b template build -c "/root/.jupyter/start-up.sh"
 
 # restack instructions
 * Set Poetry environment
@@ -57,7 +52,4 @@ Visit the Developer UI to see your workflow already executed by the service: htt
 # How to run summary:
 * Change prompt and test cases in schedle_workflow.py to your project description
 * Add pyproject.toml (and poetry.lock if you have one) in the project root.
-* Add e2b.Dockerfile at the project root or where you run e2b template build.
-* Run e2b template init and e2b template build to create and get your E2B template ID.
-* Set E2B_TEMPLATE_ID as an environment variable.
 * Set OPENAI_KEY as an environment variable.
